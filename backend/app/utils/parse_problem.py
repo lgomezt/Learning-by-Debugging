@@ -59,6 +59,18 @@ def parse_problem_content(content: str, metadata: dict = None):
     match = re.search(r"## Agent Input[\s\S]*?```python\s*([\s\S]*?)```", content)
     agent_code = match.group(1).strip() if match else ""
 
+    # Extract Evaluation section (Python code)
+    match = re.search(r"## Evaluation\s*([\s\S]*?)(?=^## |\Z)", content, re.MULTILINE)
+    evaluation = match.group(1).strip() if match else ""
+    # If evaluation contains a code block, extract just the code
+    code_match = re.search(r"```python\s*([\s\S]*?)```", evaluation)
+    if code_match:
+        evaluation = code_match.group(1).strip()
+
+    # Extract Suggested Answer section (Python code block)
+    match = re.search(r"## Suggested Answer[\s\S]*?```python\s*([\s\S]*?)```", content)
+    suggested_answer = match.group(1).strip() if match else ""
+
     return {
         "title": metadata.get("title", ""),
         "description_meta": metadata.get("description", ""),
@@ -73,6 +85,8 @@ def parse_problem_content(content: str, metadata: dict = None):
         "example_output": example_output,
         "agent_code": agent_code,
         "user_code": user_code,
+        "evaluation": evaluation,
+        "suggested_answer": suggested_answer,
     }
 
 def load_problem(problem_id: str):

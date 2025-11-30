@@ -1,13 +1,23 @@
 import { useState, useEffect, useRef} from "react";
+import type { TestResult } from '../../utils/evaluation';
 
 type UserOutputProps = {
     text: string;
+    evaluationResults?: TestResult[];
+    isAgentPanel?: boolean;
 }
 
-function UserOutput({ text }: UserOutputProps) {
-    const [type, setType] = useState<number>(1);
+function UserOutput({ text, evaluationResults, isAgentPanel = false }: UserOutputProps) {
+    const [type] = useState<number>(1);
     const [history, setHistory] = useState<string[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Debug: Log when evaluation results change
+    useEffect(() => {
+        if (evaluationResults && evaluationResults.length > 0) {
+            console.log(`${isAgentPanel ? 'Agent' : 'User'} evaluation results:`, evaluationResults);
+        }
+    }, [evaluationResults, isAgentPanel]);
 
     useEffect(() => {
         if (text) setHistory((prev) => [...prev, text]);
@@ -15,51 +25,70 @@ function UserOutput({ text }: UserOutputProps) {
 
     useEffect(() => {
         scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [history]);
-
-    function outputType(newType: number) : void {
-        setType(newType);
-    }
+    }, [history, evaluationResults]);
 
     return (
-        <div className="flex flex-col flex-2 border-l border-slate-700 bg-slate-900">
-            <div id="user-control" className="flex flex-1">
-                <button className={`flex flex-1 ${type === 1 ? 'bg-slate-800 text-emerald-400 border-b-2 border-emerald-500' : 'bg-slate-900 text-slate-400 hover:text-emerald-300 hover:bg-slate-800'} font-mono text-sm h-full items-center justify-center transition-colors cursor-pointer border-b border-slate-700 border-r border-slate-700`} 
-                    onClick={() => outputType(1)}
-                >
-                    TERMINAL
-                </button>
-                <button className={`flex flex-1 ${type === 2 ? 'bg-slate-800 text-emerald-400 border-b-2 border-emerald-500' : 'bg-slate-900 text-slate-400 hover:text-emerald-300 hover:bg-slate-800'} font-mono text-sm h-full items-center justify-center transition-colors cursor-pointer border-b border-slate-700`} 
-                    onClick={() => outputType(2)}
-                >
-                    VISUAL
-                </button>
-            </div>
-            <div className="flex flex-10">
+        <div className="flex flex-col flex-1 border-l border-slate-700 bg-slate-900 min-w-0">
+            <div className="flex flex-1 min-h-0">
                 {type === 1 && (
-                    <div className="px-4 py-4 bg-slate-950 text-slate-100 flex-1 font-mono text-sm h-[calc(10*((100vh)/2)/11)] w-[calc(2*(100vw/3)/4)] overflow-auto whitespace-pre-wrap break-words">
-                        {history.length === 0 ? (
+                    <div className="px-4 py-4 bg-slate-950 text-slate-100 flex-1 font-mono text-sm overflow-auto whitespace-pre-wrap break-words">
+                        {history.length === 0 && (!evaluationResults || evaluationResults.length === 0) ? (
                             <div className="text-slate-500 italic">Ready to run your code...</div>
                         ) : (
-                            history.map((line, idx) => (
-                                <div key={idx} className="mb-3">
-                                    <div className="text-emerald-400 text-xs mb-1">% python3 main.py</div>
-                                    <div className="text-slate-100">{line}</div>
-                                </div>
-                            ))
+                            <>
+                                {/* Evaluation Results */}
+                                {evaluationResults && evaluationResults.length > 0 && (
+                                    <div className="mb-4">
+                                        <div className="text-cyan-400 text-sm font-semibold mb-2">
+                                            {isAgentPanel ? 'Agent Evaluation Results' : 'User Evaluation Results'}
+                                        </div>
+                                        {evaluationResults.map((result, idx) => (
+                                            <div key={idx} className="mb-3 p-2 bg-slate-800 rounded">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs">
+                                                        Test {isAgentPanel ? 'agent' : 'user'} code {result.testNumber}/{result.totalTests}
+                                                    </span>
+                                                    <span className={result.passed ? 'text-green-400' : 'text-red-400'}>
+                                                        {result.passed ? '✅' : '❌'}
+                                                    </span>
+                                                </div>
+                                                {result.input && (
+                                                    <div className="text-xs text-slate-400 mb-1">
+                                                        Input: {JSON.stringify(result.input)}
+                                                    </div>
+                                                )}
+                                                {result.error ? (
+                                                    <div className="text-xs text-red-400">
+                                                        Error: {result.error}
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="text-xs text-slate-400 mb-1">
+                                                        Expected: <span className="text-green-300">{result.expectedOutput || '(empty)'}</span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-400">
+                                                        Got: <span className={result.passed ? 'text-green-300' : 'text-red-300'}>{result.actualOutput || '(empty)'}</span>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {/* Regular output history */}
+                                {history.length > 0 && (
+                                    <div className={evaluationResults && evaluationResults.length > 0 ? 'mt-4 pt-4 border-t border-slate-700' : ''}>
+                                        {history.map((line, idx) => (
+                                            <div key={idx} className="mb-3">
+                                                <div className="text-emerald-400 text-xs mb-1">% python3 main.py</div>
+                                                <div className="text-slate-100">{line}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
                         )}
                         <div ref={scrollRef} />
-                    </div>
-                )}
-                {type === 2 && (
-                    <div className="bg-slate-900 flex-1 flex items-center justify-center">
-                        <div className="text-center text-slate-400">
-                            <svg className="w-16 h-16 mx-auto mb-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-lg font-medium">Visual Output</p>
-                            <p className="text-sm text-slate-500 mt-1">Graphical output will appear here</p>
-                        </div>
                     </div>
                 )}
             </div>

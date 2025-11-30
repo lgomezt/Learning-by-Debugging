@@ -4,7 +4,7 @@ type GoalProps = {
 
 function Goal({ text }: GoalProps) {
   return (
-    <div className="flex flex-col flex-2 min-h-0 bg-slate-900 p-4">
+    <div className="flex flex-col bg-slate-900">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
           <svg className="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
@@ -19,7 +19,7 @@ function Goal({ text }: GoalProps) {
       </p>
       
       {/* Output Area */}
-      <div className="flex-1 min-h-0">
+      <div>
         <div className="bg-slate-950 rounded-lg border border-slate-700 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
             <div className="flex items-center gap-2">

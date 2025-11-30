@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import './IDE.css';
 import LeftPanel from './leftpanel.tsx';
 import User from './user.tsx';
+import EvaluationPopup from './EvaluationPopup.tsx';
 import { fetchProblem } from '../../utils/api.ts';
 import { useFiles } from "../../../context/filecontext.tsx";
 import { type HistoryEvent } from './chatbot.tsx';
+import { evaluateCode, type EvaluationResults } from '../../utils/evaluation.ts';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -41,6 +43,13 @@ function App() {
     const [description, setDescription] = useState<string>("");
     const [milestones, setMilestones] = useState<{ number: number; content: string }[]>([]);
     const [goal, setGoal] = useState<string>("");
+
+    // Evaluation-related state
+    const [evaluation, setEvaluation] = useState<string>("");
+    const [suggestedAnswer, setSuggestedAnswer] = useState<string>("");
+    const [evaluationResults, setEvaluationResults] = useState<EvaluationResults | null>(null);
+    const [showEvaluationPopup, setShowEvaluationPopup] = useState<boolean>(false);
+    const [evaluationPyodide, setEvaluationPyodide] = useState<any>(null);
 
     // This is now the single source of truth for the conversation
     const [conversationHistory, setConversationHistory] = useState<HistoryEvent[]>([]);
@@ -190,11 +199,70 @@ function App() {
                 setGoal(problem.example_output || "");
                 setCommonMistakes(problem.common_mistakes || []);
                 setLessonGoals(problem.lesson_goals || []);
+                setEvaluation(problem.evaluation || "");
+                setSuggestedAnswer(problem.suggested_answer || "");
             }
         }
         
         loadProblem();
     }, [selectedFile]);
+
+    // Load Pyodide for evaluation
+    useEffect(() => {
+        async function loadPyodide() {
+            // @ts-ignore
+            const pyodideModule = await import("https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.mjs");
+            const pyodideInstance = await pyodideModule.loadPyodide({
+                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.4/full/",
+            });
+            setEvaluationPyodide(pyodideInstance);
+        }
+        loadPyodide();
+    }, []);
+
+    // Handle evaluation
+    async function handleEvaluate() {
+        if (!evaluationPyodide || !evaluation || !suggestedAnswer) {
+            console.error("Evaluation not ready: missing pyodide, evaluation code, or suggested answer");
+            return;
+        }
+
+        // Commit user code before evaluation
+        commitUserCode();
+
+        try {
+            console.log("Starting evaluation...");
+            console.log("User code:", liveUserCode || userCodeT1);
+            console.log("Agent code:", liveAgentCode || agentCodeT1);
+            console.log("Evaluation code:", evaluation);
+            
+            const results = await evaluateCode(
+                evaluationPyodide,
+                liveUserCode || userCodeT1,
+                liveAgentCode || agentCodeT1,
+                suggestedAnswer,
+                evaluation
+            );
+
+            console.log("Evaluation results:", results);
+            setEvaluationResults(results);
+            setShowEvaluationPopup(true);
+        } catch (error) {
+            console.error("Evaluation error:", error);
+            alert(`Evaluation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    function handleRetry() {
+        setShowEvaluationPopup(false);
+        // Keep evaluation results visible in console, don't clear them
+    }
+
+    function handleAccept() {
+        setShowEvaluationPopup(false);
+        // TODO: Mark problem as completed, navigate away, etc.
+        console.log("Problem completed!");
+    }
 
     return ( 
     <>
@@ -218,27 +286,43 @@ function App() {
                     onSendMessage={handleSendMessage}
                 />
             </div>
+            {/* Right Panel: Split vertically into User (top) and Agent (bottom) */}
             <div className="flex flex-1 flex-col">
-                {/* User's editor */}
-                <User 
-                    previousCode={userCodeT0}
-                    targetCode={userCodeT1} 
-                    code={liveUserCode} 
-                    setCode={setLiveUserCode} 
-                    onCommit={commitUserCode} 
-                />
+                {/* User Section: Top Half */}
+                <div className="flex flex-1 flex-col min-h-0 border-b border-slate-700">
+                    <User 
+                        previousCode={userCodeT0}
+                        targetCode={userCodeT1} 
+                        code={liveUserCode} 
+                        setCode={setLiveUserCode} 
+                        onCommit={commitUserCode}
+                        onEvaluate={handleEvaluate}
+                        evaluationResults={evaluationResults?.userResults}
+                    />
+                </div>
                 
-                {/* Agent's editor */}
-                <User 
-                    previousCode={agentCodeT0} 
-                    targetCode={agentCodeT1}   
-                    code={liveAgentCode} 
-                    setCode={setLiveAgentCode} 
-                    onCommit={commitAgentCode}
-                    isAgentPanel={true} 
-                />
+                {/* Agent Section: Bottom Half */}
+                <div className="flex flex-1 flex-col min-h-0">
+                    <User 
+                        previousCode={agentCodeT0} 
+                        targetCode={agentCodeT1}   
+                        code={liveAgentCode} 
+                        setCode={setLiveAgentCode} 
+                        onCommit={commitAgentCode}
+                        isAgentPanel={true}
+                        evaluationResults={evaluationResults?.agentResults}
+                    />
+                </div>
             </div>
         </div>
+        {showEvaluationPopup && (
+            <EvaluationPopup
+                results={evaluationResults}
+                onClose={() => setShowEvaluationPopup(false)}
+                onRetry={handleRetry}
+                onAccept={handleAccept}
+            />
+        )}
     </> )
 }
 

@@ -9,6 +9,9 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  optimizeDeps: {
+    include: ['canvas-confetti'],
+  },
   server: {
     host: true,
     port: 5173,

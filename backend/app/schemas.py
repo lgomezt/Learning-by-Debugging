@@ -56,3 +56,5 @@ class ProblemDetail(Problem):
     example_output: str
     agent_code: str
     user_code: str
+    evaluation: Optional[str] = None
+    suggested_answer: Optional[str] = None

@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import UserOutput from "./useroutput.tsx";
 import { FaUser, FaRobot } from 'react-icons/fa';
 import { diffChars } from 'diff';
+import type { TestResult } from '../../utils/evaluation';
 
 const TYPING_SPEED_MS = 15; 
 // A small helper function to create a delay in async functions
@@ -15,6 +16,8 @@ type UserProps = {
   code?: string;         // The live, in-editor code (mostly for the user panel)
   setCode?: (code: string) => void;
   onCommit?: () => void;
+  onEvaluate?: () => void;
+  evaluationResults?: TestResult[];
   isAgentPanel?: boolean;
 };
 
@@ -39,6 +42,8 @@ function User({
   code,
   setCode,
   onCommit,
+  onEvaluate,
+  evaluationResults,
   isAgentPanel = false
 }: UserProps) {
 
@@ -147,38 +152,53 @@ function User({
   };
 
   return (
-    <div className="flex flex-1 border-1 min-w-0">
-      <div className="flex flex-col flex-3 min-w-0">
-        <div className={`flex flex-none items-center justify-between px-4 py-2 ${theme.headerClasses}`}>
-          <div className="flex items-center gap-3">
-            <theme.Icon className="w-5 h-5" />
-            <div className="text-sm font-semibold">{theme.label}</div>
-          </div>
+    <div className="flex flex-col flex-1 min-h-0 min-w-0">
+      {/* Header bar extends full width */}
+      <div className={`flex flex-none items-center justify-between px-4 py-2 ${theme.headerClasses}`}>
+        <div className="flex items-center gap-3">
+          <theme.Icon className="w-5 h-5" />
+          <div className="text-sm font-semibold">{theme.label}</div>
+        </div>
+        <div className="flex items-center gap-2">
           <button
-            className="mx-5 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             onClick={runCode}
             disabled={!pyodide}
           >
             Run
           </button>
+          {!isAgentPanel && onEvaluate && (
+            <button
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              onClick={onEvaluate}
+              disabled={!pyodide}
+            >
+              Evaluate
+            </button>
+          )}
         </div>
-        <Editor
-          className="flex-1"
-          defaultLanguage="python"
-          value={displayedCode} // The editor shows our local animated state
-          onChange={handleEditorChange}
-          theme="vs-light"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            fontFamily: "monospace",
-            readOnly: isAgentPanel, // Make the agent editor read-only to prevent user interference
-            wordWrap: 'on',
-            lineNumbers: 'on'
-          }}
-        />
       </div>
-      <UserOutput text={output}></UserOutput>
+      {/* Editor and Terminal side by side */}
+      <div className="flex flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-w-0">
+          <Editor
+            className="flex-1"
+            defaultLanguage="python"
+            value={displayedCode} // The editor shows our local animated state
+            onChange={handleEditorChange}
+            theme="vs-light"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              fontFamily: "monospace",
+              readOnly: isAgentPanel, // Make the agent editor read-only to prevent user interference
+              wordWrap: 'on',
+              lineNumbers: 'on'
+            }}
+          />
+        </div>
+        <UserOutput text={output} evaluationResults={evaluationResults} isAgentPanel={isAgentPanel}></UserOutput>
+      </div>
     </div>
   );
 }

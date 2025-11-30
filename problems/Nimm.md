@@ -68,6 +68,28 @@ Game over
 ```
 
 ## Evaluation
+```python
+# Test cases for the Nimm game
+# Each test case is a list of inputs (numbers of stones to remove)
+# The inputs will be provided sequentially to the input() function
+
+test_cases = [
+    # Test case 1: Remove 2 stones each time (10 times = 20 stones)
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    
+    # Test case 2: Remove 1 stone each time (20 times = 20 stones)
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    
+    # Test case 3: Mixed inputs (alternating 1 and 2)
+    [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1],
+    
+    # Test case 4: Remove 2 stones most of the time, then 1 at the end
+    [2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1],
+    
+    # Test case 5: Remove 1 stone most of the time, then 2 at the end
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2]
+]
+```
 
 ## Lesson Goals
 

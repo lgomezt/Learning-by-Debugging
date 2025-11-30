@@ -1,5 +1,6 @@
 // leftpanel.tsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Chatbot from "./chatbot";
 import Goal from "./goal";
 import { type HistoryEvent } from "./chatbot"
@@ -35,7 +36,8 @@ function LeftPanel({
         onSendMessage,
     }: LeftPanelProps) {
 
-    const [activeTab, setActiveTab] = useState<"description" | "goal" | "chatbot">("description");
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<"description" | "chatbot">("description");
     const [isPanelCollapsed, setIsPanelCollapsed] = useState<boolean>(false);
     const [expandedMilestones, setExpandedMilestones] = useState<Set<number>>(new Set());
 
@@ -89,6 +91,15 @@ function LeftPanel({
                 <>
                     {/* Left Panel Header */}
                     <div className="flex bg-slate-800 border-b border-slate-700">
+                        <button 
+                            onClick={() => navigate("/problem_selection")}
+                            className="px-3 py-3 text-slate-400 hover:text-emerald-300 transition-colors border-r border-slate-700"
+                            title="Back to problem selection"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                        </button>
                         <button onClick={() => setActiveTab("description")}
                             className={`px-4 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors relative ${
                                 activeTab === "description"
@@ -100,18 +111,6 @@ function LeftPanel({
                                 <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
                             </svg>
                             Description
-                        </button>
-                        <button onClick={() => setActiveTab("goal")}
-                            className={`px-4 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors relative ${
-                                activeTab === "goal"
-                                    ? "border-emerald-500 text-emerald-400 bg-slate-900"
-                                    : "border-transparent text-slate-400 hover:text-emerald-300"
-                            }`}
-                        >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
-                            </svg>
-                            Goal
                         </button>
                         <button onClick={() => setActiveTab("chatbot")}
                             className={`px-4 py-3 text-sm font-medium flex items-center gap-2 border-b-2 transition-colors ${
@@ -232,13 +231,13 @@ function LeftPanel({
                                             </div>
                                         </div>
                                     )}
+                                    {/* Goal section at the bottom of Description */}
+                                    {goal && (
+                                        <div className="p-4 mt-6 border-t border-slate-700 pt-6">
+                                            <Goal text={goal}></Goal>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        )}
-                        {/* Goal Tab Content */}
-                        {activeTab === "goal" && (
-                            <div className="h-full flex flex-col">
-                                <Goal text={goal}></Goal>
                             </div>
                         )}
                         {/* Chatbot Tab Content */}
