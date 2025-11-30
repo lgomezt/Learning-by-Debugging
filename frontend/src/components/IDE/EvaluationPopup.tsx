@@ -5,12 +5,11 @@ import type { EvaluationResults } from '../../utils/evaluation';
 
 type EvaluationPopupProps = {
   results: EvaluationResults | null;
-  onClose: () => void;
   onRetry: () => void;
   onAccept: () => void;
 };
 
-function EvaluationPopup({ results, onClose, onRetry, onAccept }: EvaluationPopupProps) {
+function EvaluationPopup({ results, onRetry, onAccept }: EvaluationPopupProps) {
 
   useEffect(() => {
     if (results && results.userPassRate === 100 && results.agentPassRate === 100) {

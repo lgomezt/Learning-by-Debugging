@@ -318,7 +318,6 @@ function App() {
         {showEvaluationPopup && (
             <EvaluationPopup
                 results={evaluationResults}
-                onClose={() => setShowEvaluationPopup(false)}
                 onRetry={handleRetry}
                 onAccept={handleAccept}
             />

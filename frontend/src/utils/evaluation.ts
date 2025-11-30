@@ -25,7 +25,6 @@ export interface EvaluationResults {
 export function transformInputCode(code: string, inputs: any[]): string {
   // Create a mock input function that returns values from the sequence
   // If we run out of inputs, return the last input value (or "1" if no inputs)
-  let inputIndex = 0;
   const defaultInput = inputs.length > 0 ? inputs[inputs.length - 1] : "1";
   const inputFunction = `
 def _mock_input(prompt=""):
