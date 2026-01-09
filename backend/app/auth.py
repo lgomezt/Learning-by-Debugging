@@ -1,16 +1,22 @@
 import os
 import requests
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
+from typing import Optional
 
 # Load Auth0 details from your .env file
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 ALGORITHMS = ["RS256"]
 
+# Check if we're in development mode (GCS not configured typically means dev mode)
+# You can also set DEV_MODE=true explicitly
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true" or not os.getenv("GCS_BUCKET_NAME")
+
 # This tells FastAPI where to look for the token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+http_bearer = HTTPBearer(auto_error=False)
 
 # Fetch the Auth0 public keys (JWKS)
 # This is done once when the app starts
@@ -23,10 +29,34 @@ except requests.exceptions.RequestException as e:
     print(f"CRITICAL ERROR: Could not fetch JWKS from Auth0: {e}")
     jwks = None
 
-def validate_token(token: str = Depends(oauth2_scheme)) -> dict:
+def validate_token(
+    token: Optional[str] = Depends(oauth2_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(http_bearer)
+) -> dict:
     """
     Validates the Auth0 Access Token and returns its decoded payload.
+    In development mode, returns a mock token payload.
     """
+    # In development mode, skip token validation and return a mock payload
+    if DEV_MODE:
+        return {
+            "sub": "dev-user-123",
+            "email": "dev@example.com",
+            "name": "Development User",
+            "iat": 1234567890,
+            "exp": 9999999999,
+        }
+    
+    # Extract token from either oauth2_scheme or http_bearer
+    if not token and credentials:
+        token = credentials.credentials
+    elif not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No token provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     if jwks is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

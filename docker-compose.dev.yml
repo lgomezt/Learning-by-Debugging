@@ -29,6 +29,8 @@ services:
       - .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+      - DB_HOST=db  # Override production DB_HOST for local dev
+      - DB_PORT=5432
     depends_on: 
       - db
     ports:

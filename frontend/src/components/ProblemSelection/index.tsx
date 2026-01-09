@@ -30,6 +30,14 @@ function ProblemSelection() {
   useEffect(() => {
     // Define an async function so we can use await
     const initialize = async () => {
+      const isDev = import.meta.env.DEV;
+      
+      // In development mode, skip user sync and just load problems
+      if (isDev) {
+        await fetchProblems();
+        return;
+      }
+      
       // Only run when Auth0 is no longer loading
       if (!isLoading) {
         
@@ -78,21 +86,28 @@ function ProblemSelection() {
     try {
       setLoading(true); 
 
-      // Get the secure token from Auth0
-      const token = await getAccessTokenSilently();
+      const isDev = import.meta.env.DEV;
       
       // Create FormData to send the file
       const formData = new FormData();
       formData.append('file', file); // The 'file' key must match your FastAPI endpoint
 
+      // Prepare headers
+      const headers: HeadersInit = {
+        // DO NOT set 'Content-Type': 'multipart/form-data'
+        // The browser sets it automatically with the correct boundary
+      };
+      
+      // In production, get and add the Auth0 token
+      if (!isDev) {
+        const token = await getAccessTokenSilently();
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       // POST the file to your new protected endpoint
       const response = await fetch(`${API_BASE_URL}/problems/upload`, {
         method: 'POST',
-        headers: {
-          // DO NOT set 'Content-Type': 'multipart/form-data'
-          // The browser sets it automatically with the correct boundary
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: formData,
       });
 

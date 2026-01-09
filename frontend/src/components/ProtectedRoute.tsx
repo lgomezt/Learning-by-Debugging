@@ -5,8 +5,14 @@ import { Outlet } from 'react-router-dom';
 import LoadingComponent from '../utils/loadingcomponent';
 
 const ProtectedRoute = () => {
+  const isDev = import.meta.env.DEV;
   // Get the loginWithRedirect function
   const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+
+  // In development mode, skip authentication
+  if (isDev) {
+    return <Outlet />;
+  }
 
   // Use useEffect to trigger the login redirect
   useEffect(() => {

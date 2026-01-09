@@ -1,11 +1,13 @@
 import os
 import frontmatter
+import glob
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid3, NAMESPACE_DNS
 
-from app.utils.parse_problem import parse_problem_content
+from app.utils.parse_problem import parse_problem_content, PROBLEMS_DIR
 
 from google.cloud import storage
 from google.api_core import exceptions
@@ -53,7 +55,12 @@ async def require_admin(token: dict = Depends(validate_token)):
     A FastAPI dependency that validates a user's token and checks
     if their user_id matches the one specified in the ADMIN_USER_ID
     environment variable.
+    In development mode, always allows access.
     """
+    # In development mode, skip admin check
+    if not GCS_BUCKET_NAME:  # Dev mode indicator
+        return token
+    
     user_id = token.get("sub") # "sub" is the standard Auth0 claim for user ID
     
     if user_id != ADMIN_USER_ID:
@@ -125,6 +132,56 @@ async def upload_problem(
         raise HTTPException(status_code=500, detail=f"Failed to upload: {str(e)}")
 
 
+@router.get("/dev", response_model=List[schemas.Problem])
+async def list_problems_dev():
+    """
+    Development-only endpoint that loads problems directly from the problems/ directory.
+    Returns problems in the same format as the database endpoint.
+    Uses filename (without .md) as a stable problem_id for development.
+    """
+    try:
+        files = glob.glob(os.path.join(PROBLEMS_DIR, "*.md"))
+        problems = []
+        
+        for file_path in files:
+            filename = os.path.basename(file_path)
+            problem_id_str = os.path.splitext(filename)[0]
+            
+            try:
+                post = frontmatter.load(file_path)
+                metadata = post.metadata
+                
+                # Create a stable UUID from the filename for consistency
+                # This ensures the same filename always generates the same UUID
+                problem_uuid = uuid3(NAMESPACE_DNS, f"dev-problem-{problem_id_str}")
+                
+                # Create a Problem-like object matching the schema
+                problem_data = {
+                    "problem_id": problem_uuid,
+                    "title": metadata.get("title", ""),
+                    "description": metadata.get("description", ""),
+                    "difficulty": metadata.get("difficulty", ""),
+                    "author": metadata.get("author", ""),
+                    "tags": metadata.get("tags", []),
+                    "update_log": metadata.get("update_log", []),
+                    "file_path": f"problems/{filename}",
+                    "created_at": datetime.now(),
+                }
+                
+                # Validate against schema
+                problem = schemas.Problem(**problem_data)
+                problems.append(problem)
+            except Exception as e:
+                print(f"Error parsing {filename}: {e}")
+                continue
+        
+        print(f"Found {len(problems)} problems in directory")  # Debug logging
+        return problems
+    except Exception as e:
+        print(f"Error loading problems from directory: {e}")  # Debug logging
+        raise HTTPException(status_code=500, detail=f"Directory error: {str(e)}")
+
+
 @router.get("/", response_model=List[schemas.Problem])
 async def list_problems(db: Session = Depends(get_db)):
     """
@@ -139,6 +196,56 @@ async def list_problems(db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error querying problems from database: {e}")  # Debug logging
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get("/dev/{problem_id}", response_model=schemas.ProblemDetail)
+async def get_single_problem_details_dev(problem_id: str):
+    """
+    Development-only endpoint that loads a problem directly from the problems/ directory.
+    problem_id should be the filename without .md extension (e.g., "BMI" for "BMI.md").
+    """
+    file_path = os.path.join(PROBLEMS_DIR, f"{problem_id}.md")
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Problem not found: {problem_id}")
+    
+    try:
+        # Load and parse the markdown file
+        post = frontmatter.load(file_path)
+        metadata = post.metadata
+        
+        # Parse the problem content
+        parsed_data = parse_problem_content(post.content, post.metadata)
+        
+        # Create a stable UUID from the filename (same as in list_problems_dev)
+        problem_uuid = uuid3(NAMESPACE_DNS, f"dev-problem-{problem_id}")
+        
+        # Create base problem data matching the Problem schema
+        base_data = {
+            "problem_id": problem_uuid,
+            "title": metadata.get("title", ""),
+            "description": metadata.get("description", ""),
+            "difficulty": metadata.get("difficulty", ""),
+            "author": metadata.get("author", ""),
+            "tags": metadata.get("tags", []),
+            "update_log": metadata.get("update_log", []),
+            "file_path": f"problems/{problem_id}.md",
+            "created_at": datetime.now(),
+        }
+        
+        # Combine base data with parsed data
+        final_data_dict = {**base_data, **parsed_data}
+        
+        # Validate against ProblemDetail schema
+        try:
+            final_response = schemas.ProblemDetail.model_validate(final_data_dict)
+            return final_response
+        except Exception as validation_error:
+            print(f"FINAL RESPONSE VALIDATION FAILED: {validation_error}")
+            raise HTTPException(500, detail=f"Response validation error: {validation_error}")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading problem: {str(e)}")
 
 
 @router.get("/{problem_id}", response_model=schemas.ProblemDetail)

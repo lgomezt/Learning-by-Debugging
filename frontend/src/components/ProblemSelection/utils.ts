@@ -106,10 +106,14 @@ export async function loadProblemsFromDirectory(): Promise<Problem[]> {
 // Replaces your 'loadProblemsFromDirectory' and 'parseProblemMarkdown'
 export async function loadProblems(): Promise<Problem[]> {
   try {
-    // Fetch the pre-parsed metadata list from the backend
-    // This endpoint should be public (no token needed, unless you want to restrict it)
-    const url = `${API_BASE_URL}/problems/`;
-    console.log('Fetching problems from:', url); // Debug logging
+    // In development mode, load problems directly from the problems/ directory
+    // In production, load from the database
+    const isDev = import.meta.env.DEV;
+    const url = isDev 
+      ? `${API_BASE_URL}/problems/dev`
+      : `${API_BASE_URL}/problems/`;
+    
+    console.log(`Fetching problems from (${isDev ? 'DEV' : 'PROD'}):`, url); // Debug logging
     
     const response = await fetch(url);
     
@@ -121,14 +125,22 @@ export async function loadProblems(): Promise<Problem[]> {
 
     // The response IS the list of problems. No parsing needed.
     const problems: Problem[] = await response.json();
-    console.log(`Loaded ${problems.length} problems from API`); // Debug logging
+    console.log(`Loaded ${problems.length} problems from ${isDev ? 'directory' : 'database'}`); // Debug logging
 
     const mappedProblems = problems.map(p => {
+      // In dev mode, use the filename (without .md) as the problem_id
+      // In prod mode, use the UUID from the database
+      const problemId = isDev 
+        ? p.file_path?.replace('problems/', '').replace('.md', '') || p.problem_id.toString()
+        : p.problem_id.toString();
+      
       return {
-      ...p,
-      id: p.problem_id.toString(),
-      topics: p.tags,             
-      completed: false,
+        ...p,
+        problem_id: problemId,
+        id: problemId,
+        fileName: isDev ? p.file_path?.replace('problems/', '') || `${problemId}.md` : undefined,
+        topics: p.tags,             
+        completed: false,
       };
     });
 
