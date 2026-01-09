@@ -40,7 +40,7 @@ Steps
 
 ```bash
 git clone https://github.com/lgomezt/Learning-by-Debugging.git
-cd teaching-the-agent
+cd Learning-by-Debugging
 ```
 
 2. Set up environment variables
